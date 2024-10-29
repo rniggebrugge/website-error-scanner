@@ -16,14 +16,14 @@ const get_all_pages = async () =>{
         nodes = nodes.map(item=>{
             const title = $(item).text().trim()
             let href = $(item).attr('href')
-            if (href[0]=="/") {
-                href = `https://www.eurojust.europa.eu${href}`
+            if (!href.startsWith("http")) {
+                href = new URL (href, url).href
             }
             return { title, url:href }
     })
         results = results.concat(nodes)
         page_number++
-    } while (nodes.length>0)
+    } while (nodes.length)
     return results
 }
 
