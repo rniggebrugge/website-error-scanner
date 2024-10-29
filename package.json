@@ -15,5 +15,13 @@
     "url": "https://github.com/rniggebrugge/website-error-scanner/issues"
   },
   "homepage": "https://github.com/rniggebrugge/website-error-scanner#readme",
-  "description": ""
+  "description": "",
+  "dependencies": {
+    "axios": "^1.7.7",
+    "cheerio": "^1.0.0",
+    "dotenv": "^16.4.5",
+    "mongodb": "^6.10.0",
+    "nodemailer": "^6.9.16"
+  },
+  "type": "module"
 }
