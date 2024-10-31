@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Fetch Content</title>
+    <style>
+    body, html {
+        background-color: #e0e0e0;
+    }
+    a { text-decoration: none; color:#039;}
+    .content{
+        width:90%;
+        height:400px;
+        display: block;
+        margin:0 0 20px 0;
+    }
+    .inner_box {
+        background-color: #fff;
+        border:5px solid #f90;
+        border-radius:5px;
+        width:100%;
+        height:93%;
+        overflow: auto;
+     }
+    </style>
+</head>
+<body>
+    <div id="all_boxes"></div>
+    <script>
+    const init = async () => {
+        let list_of_pages = await fetch("/fetch-pages")
+                                .then(response => response.json())
+                                .catch(error=>console.error("Error: ", error))
+
+        // list_of_pages = list_of_pages.slice(0,4)
+
+        for(let i=0; i<list_of_pages.length;i++){
+            const title = list_of_pages[i].title
+            const orig_url = list_of_pages[i].url
+            const url = encodeURIComponent(orig_url+"?anchor=top")
+            const data = await fetch(`/fetch-content/${url}`)
+                .then(response => response.text())
+                .catch(error => console.error('Error:', error))
+            const outer_box = document.createElement("div")
+            outer_box.innerHTML = `<a href="${orig_url}" target="_blank"><b style="padding-left:20px;">${title}</b></a>`
+            outer_box.className = "content"
+            const box = document.createElement("div")
+            box.className = "inner_box"
+            box.setAttribute("id", `box_${i}`)
+            box.innerHTML = data
+            outer_box.append(box)
+            document.getElementById("all_boxes").append(outer_box)
+            try {
+                document.getElementById(`box_${i}`).querySelector(".header").style.display="none"
+                const images = document.getElementById(`box_${i}`).querySelectorAll("img[src]")
+                images.forEach(image=>{
+                    let src = image.getAttribute('src')
+                    if (src.startsWith("/")) {
+                        src = "https://www.eurojust.europa.eu"+src
+                        image.setAttribute("src", src)
+                    }
+                })
+            } catch (error) {
+                console.log("Another error: ", error)
+            }
+        }
+    }
+        
+        document.addEventListener("DOMContentLoaded", init)
+    </script>
+</body>
+</html>
+

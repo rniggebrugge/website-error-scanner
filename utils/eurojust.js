@@ -2,7 +2,13 @@ import axios from 'axios'
 import * as cheerio from 'cheerio'
 import { db } from './db.js'
 
-const get_all_pages = async () =>{
+const TEST = false
+
+const delay = ms => {
+    return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+const get_all_news_pages = async () =>{
     const base_url = "https://www.eurojust.europa.eu/media-and-events/press-releases-and-news?page="
     let page_number = 0
     let results = []
@@ -19,23 +25,83 @@ const get_all_pages = async () =>{
             if (!href.startsWith("http")) {
                 href = new URL (href, url).href
             }
-            return { title, url:href }
+            return { page_number:page_number+1, title, url:href }
     })
         results = results.concat(nodes)
         page_number++
-    } while (nodes.length)
+    } while (nodes.length && !TEST)
+    return results
+}
+const get_all_publications = async () =>{
+    const base_url = "https://www.eurojust.europa.eu/publications?page="
+    let page_number = 0
+    let results = []
+    let nodes
+    do {
+        const url = `${base_url}${page_number}`
+        console.log(`Scanning ${url}.`)
+        const { data } = await axios(url)
+        const $ = cheerio.load(data)
+        nodes = [...$(".content div.field--name-publication-tag-title h3 a")]
+        nodes = nodes.map(item=>{
+            const title = $(item).text().trim()
+            let href = $(item).attr('href')
+            if (!href.startsWith("http")) {
+                href = new URL (href, url).href
+            }
+            return { page_number:page_number+1 , title, url:href }
+    })
+        results = results.concat(nodes)
+        page_number++
+    } while (nodes.length && !TEST)
     return results
 }
 
-const get_images = async page => {
-    const {url, title} = page
-    console.log(`Checking ${url}.`)
+const background_pages = async () =>{
+    const url = "https://www.eurojust.europa.eu/"
+    let results = []
+    let nodes = []
+    console.log(`Scanning ${url}.`)
     const { data } = await axios(url)
+    const $ = cheerio.load(data)
+    nodes = [...$("#block-eurojust-main-navigation a")]
+    nodes = nodes
+        .filter(item=>$(item).attr('href')&&$(item).attr('href')!==undefined)
+        .map(item=>{
+            const title = $(item).text().trim()
+            let href = $(item).attr('href')
+            if (!href.startsWith("http")) {
+                href = new URL (href, url).href
+            }
+            return { page_number:"homepage" , title, url:href }
+        })
+    return nodes
+}
+
+
+const get_images = async page => {
+    const {page_number, url, title} = page
+    console.log(`Page ${page_number}, checking  ${url}.`)
+    let results = []
+    let data 
+
+    for (let i=0;i<5;i++){
+        try  { 
+            const response = await axios(url)
+            data = response.data 
+            break
+        }
+        catch {
+            // just try again after short delay
+            data = null
+            delay(1000)
+        }
+    }
+    if (!data) return results
     const $ = cheerio.load(data)
     let images = [...$("img")]
     images = images.map(img=>new URL($(img).attr('src'), url).href).filter(img=>img&&img!="undefined")
     let index = 0
-    let results = []
     if (images.length) {
         do {
             const src = images[index]
@@ -79,4 +145,18 @@ const create_email_data = results => {
     return { html, text }
 }
 
-export { get_all_pages, get_images, create_email_data, group_images }
+const save_to_db = async results => {
+    const collection = await db.collection('errors')
+    const date = new Date(Date.now())
+    await collection.insertMany(results.map(r=>{ r.date=date; return r }))
+}
+
+export { 
+    get_all_news_pages, 
+    get_all_publications, 
+    background_pages,
+    get_images, 
+    create_email_data, 
+    group_images, 
+    save_to_db 
+}

@@ -1,12 +1,22 @@
 import {send} from './utils/mail.js'
 import { connectToDb, closeDb } from './utils/db.js'
-import { get_all_pages, get_images, create_email_data, group_images  } from './utils/eurojust.js'
+import { 
+    get_all_news_pages, 
+    get_all_publications,
+    background_pages,
+    get_images, 
+    create_email_data, 
+    group_images, 
+    save_to_db  } from './utils/eurojust.js'
 
 // can work with callback fuction, but equally, why not start with connecting with
 // db and await completion
 await connectToDb()
 
-const pages = await get_all_pages()
+let pages = []
+pages = pages.concat(await get_all_news_pages())
+pages = pages.concat(await get_all_publications())
+pages = pages.concat(await background_pages())
 
 let all_results = []
 let index = 0
@@ -20,6 +30,7 @@ do {
     index++
 } while (index<pages.length)
 
+await save_to_db(all_results)
 all_results = group_images(all_results)
 const data = create_email_data(all_results)
 send(data)
