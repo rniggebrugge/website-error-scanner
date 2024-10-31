@@ -1,6 +1,5 @@
 import nodemailer from 'nodemailer'
 import dotenv from 'dotenv'
-
 dotenv.config({ path: '~/shared-env/.env' })
 
 const transporter = nodemailer.createTransport({

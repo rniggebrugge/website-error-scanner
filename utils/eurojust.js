@@ -2,7 +2,7 @@ import axios from 'axios'
 import * as cheerio from 'cheerio'
 import { db } from './db.js'
 
-const TEST = false
+const TEST = true
 
 const delay = ms => {
     return new Promise(resolve => setTimeout(resolve, ms))
