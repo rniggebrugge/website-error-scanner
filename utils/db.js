@@ -1,7 +1,9 @@
 import { MongoClient } from 'mongodb'
-import 'dotenv/config'
+import dotenv from 'dotenv'
 
 let db, client
+
+dotenv.config({ path: '~/shared-env/.env' })
 
 const connectToDb = async() =>{
     client = process.env.MONGO==='remote'
