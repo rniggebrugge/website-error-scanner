@@ -15,7 +15,7 @@ const transporter = nodemailer.createTransport({
 
 const mailOptions = {
     from: 'remco.niggebrugge@icloud.com',
-    to: 'remco.niggebrugge@icloud.com',
+    to: 'remco.niggebrugge@icloud.com, remco.niggebrugge@gmail.com',
     subject: `Error Report: ${new Date(Date.now())}`,
     text:'--empty message--',
     html:'<p>--empty message--</p>'
