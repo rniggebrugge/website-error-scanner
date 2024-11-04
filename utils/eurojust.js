@@ -43,7 +43,7 @@ const get_all_news_pages = async () =>{
     return results
 }
 const get_all_publications = async () =>{
-    const base_url = "https://www.eurojust.europa.eu/publications?page="
+    const base_url = "https://www.eurojust.europa.eu/publications?allpublications=1&page="
     let page_number = 0
     let results = []
     let nodes
@@ -53,6 +53,30 @@ const get_all_publications = async () =>{
         const { data } = await axios(url)
         const $ = cheerio.load(data)
         nodes = [...$(".content div.field--name-publication-tag-title h3 a")]
+        nodes = nodes.map(item=>{
+            const title = $(item).text().trim()
+            let href = $(item).attr('href')
+            if (!href.startsWith("http")) {
+                href = new URL (href, url).href
+            }
+            return { page_number:page_number+1 , title, url:href }
+    })
+        results = results.concat(nodes)
+        page_number++
+    } while (nodes.length && !TEST)
+    return results
+}
+const get_all_documents = async () => {
+    const base_url = "https://www.eurojust.europa.eu/public-register?page="
+    let page_number = 0
+    let results = []
+    let nodes
+    do {
+        const url = `${base_url}${page_number}`
+        console.log(`Scanning ${url}`)
+        const { data } = await axios(url)
+        const $ = cheerio.load(data)
+        nodes = [...$(".content div.field--name-node-title h3 a")]
         nodes = nodes.map(item=>{
             const title = $(item).text().trim()
             let href = $(item).attr('href')
@@ -88,8 +112,7 @@ const background_pages = async () =>{
     return nodes
 }
 
-
-const get_images = async page => {
+const check_page = async page => {
     const {page_number, url, title} = page
     console.log(`Page ${page_number}, checking  ${url}`)
     let results = []
@@ -108,46 +131,81 @@ const get_images = async page => {
         }
     }
     if (!data) return results
+
+    results = results.concat(await check_images(data, url))
+    results = results.concat(await check_documents(data, url))
+
+    results = results.map(result=>{
+        result.title = title 
+        return result
+    })
+
+    return results
+}
+
+const check_images = async (data, url) => {
     const $ = cheerio.load(data)
     let images = [...$("img")]
     images = images.map(img=>new URL($(img).attr('src'), url).href).filter(img=>img&&img!="undefined")
-    let index = 0
-    if (images.length) {
-        do {
-            const src = images[index]
-            try {
-                const response = await axios.get(src, {validateStatus:false})
-                const status = response.status
-                if (status!=200) {
-                    results.push({ url, title,src, status:response.status})
-                }
-            } catch (error) {
-                results.push({ title, url, src, status:`Error: ${error.message}`})
+    let results = []
+
+    for (let index=0; index<images.length; index++) {
+        const src = images[index]
+        console.log(`\t-> Checking ${src}`)
+        try {
+            const response = await axios.head(src, {validateStatus:false})
+            const status = response.status
+            if (status!=200) {
+                results.push({ url, src, status:response.status})
             }
-            index++
-        } while (index<images.length)
+        } catch (error) {
+            results.push({ url, src, status:`Error: ${error.message}`})
+        }
+    } 
+    return results
+}
+
+const check_documents = async (data, url) => {
+    const $ = cheerio.load(data)
+    let results = []
+    let doc_links = [...$("a[href*='.pdf']")]
+    let doc_options = [...$("option[value*='.pdf']")]
+    doc_links = doc_links.map(doc=>{
+        const doc_url  = new URL($(doc).attr('href'), url).href
+        return { doc_url, link_text:$(doc).text() }
+    })
+    doc_options = doc_options.map(doc=>{
+        const doc_url = new URL($(doc).attr("value").split("##")[0], url).href
+        return { doc_url, link_text:$(doc).text() }
+    })
+
+    doc_links = doc_links.concat(doc_options)
+    doc_links = doc_links.filter(doc=>doc.doc_url&&doc.doc_url!="undefined")
+
+    for (let index=0; index<doc_links.length; index++) {
+        const href = doc_links[index].doc_url
+        const link_text = doc_links[index].link_text
+        console.log(`\t-> Checking ${href}`)
+        try {
+            const response = await axios.head(href, {validateStatus:false})
+            const status = response.status
+            if (status!=200) {
+                results.push({ url, link_text, src:href, status:response.status})
+            }
+        } catch (error) {
+            results.push({ url, link_text, src:href, status:`Error: ${error.message}`})
+        }
     }
     return results
 }
 
-const group_images = results => {
-    return results.reduce((acc, image)=>{
-        const item = acc.find(d=>d.src==image.src)
-        if (item) {
-            item.pages.push({title:image.title, url:image.url})
-        } else {
-            acc.push({pages:[{title:image.title, url:image.url}],src:image.src, status:image.status})
-        }
-        return acc
-    }, [])
-}
 
 const create_email_data = results => {
     let html = "<h2>Error report</h2>" 
     let text  = "Error report\n\n" 
     if (results.length){
-        html += results.map(result=>`<p style="border-top:1px solid #ccc">${result.pages.map(p=>"<a href="+p.url+"><b>"+p.title+"</b></a>").join("<br>") }</p><p style="padding-left:40px">* ${result.src}<br>* ${result.status}</p>`).join("\n")
-        text += results.map(result=>`${result.pages.map(p=>p.title+" ("+p.url+")").join("\n") }  \n\t${result.src}\n\t${result.status}`).join("\n\n")
+        html += results.map(result=>`<p style="border-top:1px solid #ccc"><a href="${result.url}"><b>${result.title}</b></a></p><p style="padding-left:40px">* ${result.src}<br>* ${result.status}${result.link_text?"<br>* Link text: "+result.link_text:""}</p>`).join("\n")
+        text += results.map(result=>`${result.url} - ${result.title}\n\t${result.src}\n\t${result.status}${result.link_text?"\n\tLink text: "+result.link_text:""}`).join("\n\n")
     } else {
         html += "<p>No problems found.</p>"
         text += "No problems found.\n\n"
@@ -164,9 +222,9 @@ const save_to_db = async results => {
 export { 
     get_all_news_pages, 
     get_all_publications, 
+    get_all_documents,
     background_pages,
-    get_images, 
+    check_page,
     create_email_data, 
-    group_images, 
     save_to_db 
 }
