@@ -2,7 +2,7 @@ import axios from 'axios'
 import * as cheerio from 'cheerio'
 import { db } from './db.js'
 
-const TEST = false
+const TEST = true
 
 const delay = ms => {
     return new Promise(resolve => setTimeout(resolve, ms))
@@ -132,8 +132,9 @@ const check_page = async page => {
     }
     if (!data) return results
 
-    results = results.concat(await check_images(data, url))
-    results = results.concat(await check_documents(data, url))
+    // results = results.concat(await check_images(data, url))
+    // results = results.concat(await check_documents(data, url))
+    results = results.concat(await check_other_links(data, url))
 
     results = results.map(result=>{
         result.title = title 
@@ -176,7 +177,7 @@ const check_documents = async (data, url) => {
     })
     doc_options = doc_options.map(doc=>{
         const doc_url = new URL($(doc).attr("value").split("##")[0], url).href
-        return { doc_url, link_text:$(doc).text() }
+        return { doc_url, link_text:$(doc).text().trim() }
     })
 
     doc_links = doc_links.concat(doc_options)
@@ -197,6 +198,39 @@ const check_documents = async (data, url) => {
         }
     }
     return results
+}
+
+const check_other_links = async (data, url) => {
+    const $ = cheerio.load(data)
+    let results = []
+    let other_links = [...$("#main a[href]:not([href*='.pdf'])")]
+    other_links = other_links.map(link=>{
+        const link_url  = new URL($(link).attr('href'), url).href
+        return { link_url, link_text:$(link).text().trim() }
+    })
+
+    other_links = other_links.filter(link=>
+        link.link_url&&
+        !link.link_url.includes("twitter.com")&&
+        !link.link_url.includes("mailto:")&&
+        !link.link_url.endsWith("undefined")&&
+        link.link_url!=="https://www.eurojust.europa.eu/")
+
+    for (let index=0; index<other_links.length; index++) {
+        const href = other_links[index].link_url
+        const link_text = other_links[index].link_text
+        console.log(`\t-> Checking ${href}`)
+        try {
+            const response = await axios.head(href, {validateStatus:false})
+            const status = response.status
+            if (status!=200) {
+                results.push({ url, link_text, src:href, status:response.status})
+            }
+        } catch (error) {
+            results.push({ url, link_text, src:href, status:`Error: ${error.message}`})
+        }
+    }
+    return results    
 }
 
 
