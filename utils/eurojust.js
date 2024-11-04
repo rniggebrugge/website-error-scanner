@@ -157,7 +157,7 @@ const check_images = async (data, url) => {
         const src = images[index]
         if (src in processed_cached) {
             const status = processed_cached[src]
-            results.push({url, src, status})
+            // results.push({url, src, status})
         } else {
             console.log(`\t-> Checking ${src}`)
             try {
@@ -165,11 +165,11 @@ const check_images = async (data, url) => {
                 const status = response.status
                 if (status!=200) {
                     processed_cached[src]=response.status
-                    results.push({ url, src, status:response.status})
+                    results.push({ url, src, status:response.status, type:"image"})
                 }
             } catch (error) {
                 processed_cached[src]=`Error: ${error.message}`
-                results.push({ url, src, status:`Error: ${error.message}`})
+                results.push({ url, src, status:`Error: ${error.message}`, type:"image"})
             }
         }
     } 
@@ -199,7 +199,7 @@ const check_documents = async (data, url) => {
         
         if (href in processed_cached) {
             const status = processed_cached[href]
-            results.push({url, src:href, status})
+            // results.push({url, src:href, status})
         } else {
             console.log(`\t-> Checking ${href}`)
             try {
@@ -207,11 +207,11 @@ const check_documents = async (data, url) => {
                 const status = response.status
                 if (status!=200) {
                     processed_cached[href]=response.status
-                    results.push({ url, link_text, src:href, status:response.status})
+                    results.push({ url, link_text, src:href, status:response.status, type:"pdf"})
                 }
             } catch (error) {
                 processed_cached[href]=`Error: ${error.message}`
-                results.push({ url, link_text, src:href, status:`Error: ${error.message}`})
+                results.push({ url, link_text, src:href, status:`Error: ${error.message}`, type:"pdf"})
             }
         }
     }
@@ -239,7 +239,7 @@ const check_other_links = async (data, url) => {
         const link_text = other_links[index].link_text
         if (href in processed_cached) {
             const status = processed_cached[href]
-            results.push({url, src:href, status})
+            // results.push({url, src:href, status})
         } else {
             console.log(`\t-> Checking ${href}`)
             try {
@@ -247,11 +247,11 @@ const check_other_links = async (data, url) => {
                 const status = response.status
                 if (status!=200) {
                     processed_cached[href]=response.status
-                    results.push({ url, link_text, src:href, status:response.status})
+                    results.push({ url, link_text, src:href, status:response.status, type:"link"})
                 }
             } catch (error) {
                 processed_cached[href]=`Error: ${error.message}`
-                results.push({ url, link_text, src:href, status:`Error: ${error.message}`})
+                results.push({ url, link_text, src:href, status:`Error: ${error.message}`, type:"link"})
             }
         }
     }
@@ -259,14 +259,14 @@ const check_other_links = async (data, url) => {
 }
 
 const create_attachment = (results, filepath) => {
-    let text = "url,title,resource,status,link_text\n"
+    let text = "url,title,resource,status,type,link_text\n"
     results.forEach(result=>{
         const title = result.title.replace(/[^\w]+/g,'-')
         let link_text = "" 
         if (result.link_text) {
             link_text = result.link_text.replace(/[^\w]+/g,'-')
         }
-        text += `"${result.url}","${title}","${result.src}","${result.status}","${link_text}"\n`
+        text += `"${result.url}","${title}","${result.src}","${result.status}",${result.type},"${link_text}"\n`
     })
     fs.writeFileSync(filepath, text)
 }
@@ -277,8 +277,8 @@ const create_email_data = results => {
     let text  = "Error report\n\n" 
     let attachments = []
     if (results.length){
-        html += results.map(result=>`<p style="border-top:1px solid #ccc"><a href="${result.url}"><b>${result.title}</b></a></p><p style="padding-left:40px">* ${result.src}<br>* ${result.status}${result.link_text?"<br>* Link text: "+result.link_text:""}</p>`).join("\n")
-        text += results.map(result=>`${result.url} - ${result.title}\n\t${result.src}\n\t${result.status}${result.link_text?"\n\tLink text: "+result.link_text:""}`).join("\n\n")
+        html += results.map(result=>`<p style="border-top:1px solid #ccc"><a href="${result.url}"><b>${result.title}</b></a></p><p style="padding-left:40px">* ${result.src}<br>* ${result.status}<br>* ${result.type}${result.link_text?"<br>* Link text: "+result.link_text:""}</p>`).join("\n")
+        text += results.map(result=>`${result.url} - ${result.title}\n\t${result.src}\n\t${result.status}\n\t${result.type}${result.link_text?"\n\tLink text: "+result.link_text:""}`).join("\n\n")
         create_attachment(results, filepath)
         attachments = [{
             filename: "results.csv",
