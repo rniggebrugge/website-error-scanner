@@ -24,7 +24,7 @@ const mailOptions = {
 const send = data => {
     const options = { ...mailOptions, ...data}
     if (process.env.EMAIL_SOURCE) {
-      options.html += `<p style="color:#999; font-size:15px">Brought to you by ${process.env.EMAIL_SOURCE}!</p>`
+      options.html += `<p style="color:#999; font-size:15px"><hr>From ${process.env.EMAIL_SOURCE}</p>`
       options.text += `\n\nBrought to you by ${process.env.EMAIL_SOURCE}!`
     }
     transporter.sendMail(options, (error, info) =>{
