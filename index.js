@@ -8,11 +8,12 @@ import {
     background_pages,
     check_page,
     create_email_data, 
+    save_to_todo,
     save_to_db  } from './utils/eurojust.js'
 
 // can work with callback fuction, but equally, why not start with connecting with
 // db and await completion
-if (config.save_to_db) await connectToDb()
+if (config.save_to_db || config.save_to_todo) await connectToDb()
 
 let pages = []
 if (config.scan.news)               pages = pages.concat(await get_all_news_pages())
@@ -42,6 +43,6 @@ if (config.send_mail) {
 
 
 // close before leaving
-if (config.save_to_db) await closeDb()
+if (config.save_to_db || config.save_to_todo) await closeDb()
 
 console.log('End of program.')

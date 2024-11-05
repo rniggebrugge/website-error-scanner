@@ -271,11 +271,13 @@ const create_attachment = (results, filepath) => {
 
 const create_email_data = results => {
     const filepath = `./${config.attachment}`
+    const { description, progress } = create_report(results)
+
     let html = "<h2>Error report</h2>" 
     let text  = "Error report\n\n" 
     let attachments = []
     if (results.length){
-        html += results.map(result=>`<p style="border-top:1px solid #ccc"><a href="${result.url}"><b>${result.title}</b></a></p><p style="padding-left:40px">* ${result.src}<br>* ${result.status}<br>* ${result.type}${result.link_text?"<br>* Link text: "+result.link_text:""}</p>`).join("\n")
+        html += description + "<hr>" + progress
         text += results.map(result=>`${result.url} - ${result.title}\n\t${result.src}\n\t${result.status}\n\t${result.type}${result.link_text?"\n\tLink text: "+result.link_text:""}`).join("\n\n")
         create_attachment(results, filepath)
         attachments = [{
@@ -288,42 +290,85 @@ const create_email_data = results => {
     }
     return { html, text, attachments }
 }
+const create_report = results => {
+    const types =  ["image","pdf","link"]
+    const date = new Date(Date.now()).toISOString().slice(0,16).replace("T"," at ")
+    const problems = types.map(type=>results.filter(r=>r.type==type).length)
+    const description = `
+        <table >
+        <tr><td>Date:</td><td>${date}</td></tr>
+        <tr><td>News pages:</td><td>${ config.scan.news ? "Yes": "No"}</td></tr>    
+        <tr><td>Publications:</td><td>${ config.scan.publications ? "Yes": "No"}</td></tr>    
+        <tr><td>Documents:</td><td>${ config.scan.documents ? "Yes": "No"}</td></tr>    
+        <tr><td>Background:</td><td>${ config.scan.background_pages ? "Yes": "No"}</td></tr>
+        <tr><td>Max pages each:</td><td>${ config.max_pages}</td></tr>
+        <tr><td>Check images:</td><td>${ config.check.images ? problems[0] + " errors" : "Not scanned"} </td></tr>    
+        <tr><td>Check pdfs:</td><td>${ config.check.pdfs ? problems[1] + " errors" : "Not scanned"} </td></tr>    
+        <tr><td>Check links:</td><td>${ config.check.links ? problems[2] + " errors" : "Not scanned"} </td></tr>    
+        </table>`
+    const progress = types.map(type=>{
+        let html = `<h3>Issues with <u>${type}s</u></h3><ol>`
+        results
+            .filter(r=>r.type==type)
+            .forEach((issue, i)=>{
+                html += `<li><a href="${issue.url}" target="_blank"><b>${issue.title}</b></a><br>`
+                html += `* <a href="${issue.src}" target="_blank">${issue.src}</a><br>`
+                html += `* Status: ${issue.status}`
+                if (issue.link_text) html += `<br>* Link text: ${issue.link_text}`
+                html += '</li>'
+            })
+        html += "</ol>"
+        return html
+        }).join("<hr>")
+
+    return { description, progress }
+
+}
+
 
 const save_to_todo = async results => {
-    const result = await db.collection('todo').aggregate([{$group: {_id:null, max:{$max:"$index"}}}]).toArray()
+    const collection = await db.collection('todo')
+    let index
+    try {
+        const result = await collection.aggregate([{$group: {_id:null, max:{$max:"$index"}}}]).toArray()
+        index = result[0].max+1
+    } catch {
+        index=1000
+    }
 
-    let problems =  ["image","pdf","link"]
-    problems = problems.map(type=>results.filter(r=>r.type==type).length)
-
+    const { description, progress } = create_report(results)
     const subject = "Eurojust website, scan report"
     const title = `Scan date: ${new Date(Date.now()).toISOString().slice(0, 10)}`
     const status = "Initiated"
     const urgency = "low"
     const priority = "low"
     const date = new Date(Date.now())
-    const index = result[0].max+1
     const tags = "Eurojust, website, scan"
     const isAction = false
-    const type = "Scan"
     const archive = false
     const creator = "Automatic scanner"
     const updater = creator
     const created = date
     const updated = date
-    const description = `
-        <table>
-        <tr><td>Date:</td><td>${date.toISOString().slice(0,18)}</td></tr>
-        <tr><td>News pages:</td><td>${ config.scan.news ? "Yes": "No"}</td></tr>    
-        <tr><td>Publications:</td><td>${ config.scan.publications ? "Yes": "No"}</td></tr>    
-        <tr><td>Documents:</td><td>${ config.scan.documents ? "Yes": "No"}</td></tr>    
-        <tr><td>Background:</td><td>${ config.scan.background_pages ? "Yes": "No"}</td></tr>
-        <tr><td>Max pages each:</td><td>${ config.max_pages}</td></tr>
-        <tr><td>Check images:</td><td>${ config.check.images ? problems[0] : "Not scanned"} </td></tr>    
-        <tr><td>Check pdfs:</td><td>${ config.check.pdfs ? problems[1] : "Not scanned"} </td></tr>    
-        <tr><td>Check links:</td><td>${ config.check.links ? problems[2] : "Not scanned"} </td></tr>    
-        </table>`
-    // const progress 
-    
+    await collection.insertOne({
+        subject,
+        title,
+        description, 
+        status,
+        urgency, 
+        priority,
+        date,
+        index,
+        progress,
+        tags,
+        isAction,
+        type:"Scan",
+        archive,
+        creator,
+        created,
+        updater,
+        updated
+    })        
 
 }
 
