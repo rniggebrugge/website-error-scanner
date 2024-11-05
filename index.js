@@ -1,3 +1,4 @@
+import cron from 'node-cron'
 import {send} from './utils/mail.js'
 import { connectToDb, closeDb } from './utils/db.js'
 import config from './config.js'
@@ -13,36 +14,42 @@ import {
 
 // can work with callback fuction, but equally, why not start with connecting with
 // db and await completion
-if (config.save_to_db || config.save_to_todo) await connectToDb()
 
-let pages = []
-if (config.scan.news)               pages = pages.concat(await get_all_news_pages())
-if (config.scan.publications)       pages = pages.concat(await get_all_publications())
-if (config.scan.background_pages)   pages = pages.concat(await background_pages())
-if (config.scan.documents)          pages = pages.concat(await get_all_documents())
+const main = async () => {
 
-let all_results = []
+    if (config.save_to_db || config.save_to_todo) await connectToDb()
+    let pages = []
+    if (config.scan.news)               pages = pages.concat(await get_all_news_pages())
+    if (config.scan.publications)       pages = pages.concat(await get_all_publications())
+    if (config.scan.background_pages)   pages = pages.concat(await background_pages())
+    if (config.scan.documents)          pages = pages.concat(await get_all_documents())
+    let all_results = []
+    const npages = pages.length
 
-const npages = pages.length
+    for (let index=0; index<npages; index++) {
+        console.log(`${index}/${npages} - ${pages[index].url}`)
+        const results = await check_page(pages[index])
+        if(results.length){
+            console.log(results)
+            all_results = all_results.concat(results)
+        }
+    } 
 
-for (let index=0; index<npages; index++) {
-    console.log(`${index}/${npages} - ${pages[index].url}`)
-    const results = await check_page(pages[index])
-    if(results.length){
-        console.log(results)
-        all_results = all_results.concat(results)
+    if (config.save_to_db) await save_to_db(all_results)
+    if (config.save_to_todo) await save_to_todo(all_results)
+    if (config.send_mail) {
+        const data = create_email_data(all_results)
+        send(data)
     }
-} 
+    
+    if (config.save_to_db || config.save_to_todo) await closeDb()
 
-if (config.save_to_db) await save_to_db(all_results)
-if (config.save_to_todo) await save_to_todo(all_results)
-if (config.send_mail) {
-     const data = create_email_data(all_results)
-     send(data)
+    console.log('End of main.')
 }
 
 
-// close before leaving
-if (config.save_to_db || config.save_to_todo) await closeDb()
-
-console.log('End of program.')
+if (false) {
+    main()
+} else {
+    cron.schedule("*/2 * * * *", main) // every 2 minutes
+}
