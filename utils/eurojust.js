@@ -2,8 +2,7 @@ import fs from 'fs'
 import axios from 'axios'
 import * as cheerio from 'cheerio'
 import { db } from './db.js'
-
-const TEST = false
+import config from '../config.js'
 
 let processed_cached = []
 
@@ -40,7 +39,7 @@ const get_all_news_pages = async () =>{
         })
             results = results.concat(nodes)
             page_number++
-        } while (nodes.length && !TEST)
+        } while (nodes.length && page_number<config.max_pages)
     }
 
     return results
@@ -66,7 +65,7 @@ const get_all_publications = async () =>{
     })
         results = results.concat(nodes)
         page_number++
-    } while (nodes.length && !TEST)
+    } while (nodes.length && page_number<config.max_pages)
     return results
 }
 const get_all_documents = async () => {
@@ -90,7 +89,7 @@ const get_all_documents = async () => {
     })
         results = results.concat(nodes)
         page_number++
-    } while (nodes.length && !TEST)
+    } while (nodes.length && page_number<config.max_pages)
     return results
 }
 
@@ -116,8 +115,7 @@ const background_pages = async () =>{
 }
 
 const check_page = async page => {
-    const {page_number, url, title} = page
-    console.log(`Page ${page_number}, checking  ${url}`)
+    const { url, title} = page
     let results = []
     let data 
 
@@ -135,9 +133,9 @@ const check_page = async page => {
     }
     if (!data) return results
 
-    results = results.concat(await check_images(data, url))
-    results = results.concat(await check_documents(data, url))
-    if (!TEST) results = results.concat(await check_other_links(data, url))
+    if (config.check.images) results = results.concat(await check_images(data, url))
+    if (config.check.pdfs)   results = results.concat(await check_documents(data, url))
+    if (config.check.links)  results = results.concat(await check_other_links(data, url))
 
     results = results.map(result=>{
         result.title = title 
@@ -272,7 +270,7 @@ const create_attachment = (results, filepath) => {
 }
 
 const create_email_data = results => {
-    const filepath = "./results.csv"
+    const filepath = `./${config.attachment}`
     let html = "<h2>Error report</h2>" 
     let text  = "Error report\n\n" 
     let attachments = []
@@ -281,7 +279,7 @@ const create_email_data = results => {
         text += results.map(result=>`${result.url} - ${result.title}\n\t${result.src}\n\t${result.status}\n\t${result.type}${result.link_text?"\n\tLink text: "+result.link_text:""}`).join("\n\n")
         create_attachment(results, filepath)
         attachments = [{
-            filename: "results.csv",
+            filename: config.attachment,
             path:filepath
         }]
     } else {

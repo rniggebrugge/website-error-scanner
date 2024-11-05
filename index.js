@@ -1,5 +1,6 @@
 import {send} from './utils/mail.js'
 import { connectToDb, closeDb } from './utils/db.js'
+import config from './config.js'
 import { 
     get_all_news_pages, 
     get_all_publications,
@@ -11,17 +12,20 @@ import {
 
 // can work with callback fuction, but equally, why not start with connecting with
 // db and await completion
-await connectToDb()
+if (config.save_to_db) await connectToDb()
 
 let pages = []
-pages = pages.concat(await get_all_news_pages())
-pages = pages.concat(await get_all_publications())
-pages = pages.concat(await background_pages())
-pages = pages.concat(await get_all_documents())
+if (config.scan.news)               pages = pages.concat(await get_all_news_pages())
+if (config.scan.publications)       pages = pages.concat(await get_all_publications())
+if (config.scan.background_pages)   pages = pages.concat(await background_pages())
+if (config.scan.documents)          pages = pages.concat(await get_all_documents())
 
 let all_results = []
 
-for (let index=0; index<pages.length; index++) {
+const npages = pages.length
+
+for (let index=0; index<npages; index++) {
+    console.log(`${index}/${npages} - ${pages[index].url}`)
     const results = await check_page(pages[index])
     if(results.length){
         console.log(results)
@@ -29,12 +33,14 @@ for (let index=0; index<pages.length; index++) {
     }
 } 
 
-await save_to_db(all_results)
-const data = create_email_data(all_results)
-send(data)
+if (config.save_to_db) await save_to_db(all_results)
+if (config.send_mail) {
+     const data = create_email_data(all_results)
+     send(data)
+}
 
 
 // close before leaving
-await closeDb()
+if (config.save_to_db) await closeDb()
 
 console.log('End of program.')
