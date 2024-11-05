@@ -3,11 +3,7 @@
     <canvas id="drawingCanvas" width="400" height="300" style="border:1px solid #000;"></canvas>
     <button type="submit">Submit</button>
     <BR>
-    <button type="button" value="#f00">red</button>
-    <button type="button" value="#0f0">green</button>
-    <button type="button" value="#00f">blue</button>
-    <button type="button" value="#000">black</button>
-    <button type="button" value="#fff">white</button>
+    <input type="color">
 </form>
 
 
@@ -58,10 +54,8 @@ canvas.addEventListener('touchmove', draw);
 
 let clr = "#000"
 
-document.querySelectorAll("button[type=button]").forEach(btn=>{
-    btn.addEventListener("click", e => {
-        clr = e.target.getAttribute("value")
-    })
+document.querySelector("input[type=color]").addEventListener("change", e => {
+        clr = e.target.value
 })
 
 document.getElementById('myForm').addEventListener('submit', function(e) {

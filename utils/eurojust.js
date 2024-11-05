@@ -289,6 +289,44 @@ const create_email_data = results => {
     return { html, text, attachments }
 }
 
+const save_to_todo = async results => {
+    const result = await db.collection('todo').aggregate([{$group: {_id:null, max:{$max:"$index"}}}]).toArray()
+
+    let problems =  ["image","pdf","link"]
+    problems = problems.map(type=>results.filter(r=>r.type==type).length)
+
+    const subject = "Eurojust website, scan report"
+    const title = `Scan date: ${new Date(Date.now()).toISOString().slice(0, 10)}`
+    const status = "Initiated"
+    const urgency = "low"
+    const priority = "low"
+    const date = new Date(Date.now())
+    const index = result[0].max+1
+    const tags = "Eurojust, website, scan"
+    const isAction = false
+    const type = "Scan"
+    const archive = false
+    const creator = "Automatic scanner"
+    const updater = creator
+    const created = date
+    const updated = date
+    const description = `
+        <table>
+        <tr><td>Date:</td><td>${date.toISOString().slice(0,18)}</td></tr>
+        <tr><td>News pages:</td><td>${ config.scan.news ? "Yes": "No"}</td></tr>    
+        <tr><td>Publications:</td><td>${ config.scan.publications ? "Yes": "No"}</td></tr>    
+        <tr><td>Documents:</td><td>${ config.scan.documents ? "Yes": "No"}</td></tr>    
+        <tr><td>Background:</td><td>${ config.scan.background_pages ? "Yes": "No"}</td></tr>
+        <tr><td>Max pages each:</td><td>${ config.max_pages}</td></tr>
+        <tr><td>Check images:</td><td>${ config.check.images ? problems[0] : "Not scanned"} </td></tr>    
+        <tr><td>Check pdfs:</td><td>${ config.check.pdfs ? problems[1] : "Not scanned"} </td></tr>    
+        <tr><td>Check links:</td><td>${ config.check.links ? problems[2] : "Not scanned"} </td></tr>    
+        </table>`
+    // const progress 
+    
+
+}
+
 const save_to_db = async results => {
     const collection = await db.collection('errors')
     const date = new Date(Date.now())
@@ -302,5 +340,6 @@ export {
     background_pages,
     check_page,
     create_email_data, 
-    save_to_db 
+    save_to_db ,
+    save_to_todo
 }

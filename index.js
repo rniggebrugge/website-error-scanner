@@ -34,6 +34,7 @@ for (let index=0; index<npages; index++) {
 } 
 
 if (config.save_to_db) await save_to_db(all_results)
+if (config.save_to_todo) await save_to_todo(all_results)
 if (config.send_mail) {
      const data = create_email_data(all_results)
      send(data)
