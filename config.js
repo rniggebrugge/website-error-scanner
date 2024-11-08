@@ -1,18 +1,18 @@
 export default {
     check: {
         images:true,
-        pdfs:false,
-        links:false
+        pdfs:true,
+        links:true
     },
     scan: {
         news:true,
-        publications:false,
-        documents:false,
-        background_pages:false
+        publications:true,
+        documents:true,
+        background_pages:true
     },
     save_to_db:false,
     save_to_todo:false,
     send_mail:true,
-    max_pages:1,   // set sufficiently high to cover ALL pages
+    max_pages:10000,   // set sufficiently high to cover ALL pages
     attachment: `results-all-${new Date(Date.now()).toISOString().slice(0, 10)}.csv`
 }

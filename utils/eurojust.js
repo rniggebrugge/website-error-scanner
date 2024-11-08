@@ -114,7 +114,7 @@ const background_pages = async () =>{
     return nodes
 }
 
-const check_page = async page => {
+const check_page = async (page, forceAll = false) => {
     const { url, title} = page
     let results = []
     let data 
@@ -133,15 +133,26 @@ const check_page = async page => {
     }
     if (!data) return results
 
-    if (config.check.images) results = results.concat(await check_images(data, url))
-    if (config.check.pdfs)   results = results.concat(await check_documents(data, url))
-    if (config.check.links)  results = results.concat(await check_other_links(data, url))
+    if (forceAll ||config.check.images) {
+        const image_results = await check_images(data, url)
+        results = results.concat(image_results)
+    }
+    if (forceAll ||config.check.pdfs) {
+        const doc_results = await check_documents(data, url)
+        results = results.concat(doc_results)
+    }
+    if (forceAll ||config.check.links) {
+        const link_results = await check_other_links(data, url)
+        results = results.concat(link_results)
+    }
 
     results = results.map(result=>{
         result.title = title 
         return result
     })
-
+    if (!forceAll){
+         delay(2000) // I get strange results, does the server block too many requests
+    }
     return results
 }
 
@@ -157,7 +168,6 @@ const check_images = async (data, url) => {
             const status = processed_cached[src]
             // results.push({url, src, status})
         } else {
-            console.log(`\t-> Checking ${src}`)
             try {
                 const response = await axios.head(src, {validateStatus:false})
                 const status = response.status
@@ -199,7 +209,6 @@ const check_documents = async (data, url) => {
             const status = processed_cached[href]
             // results.push({url, src:href, status})
         } else {
-            console.log(`\t-> Checking ${href}`)
             try {
                 const response = await axios.head(href, {validateStatus:false})
                 const status = response.status
@@ -239,7 +248,6 @@ const check_other_links = async (data, url) => {
             const status = processed_cached[href]
             // results.push({url, src:href, status})
         } else {
-            console.log(`\t-> Checking ${href}`)
             try {
                 const response = await axios.head(href, {validateStatus:false})
                 const status = response.status

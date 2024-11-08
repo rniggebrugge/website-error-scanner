@@ -48,7 +48,7 @@ const main = async () => {
 }
 
 
-if (false) {
+if (true) {
     main()
 } else {
     cron.schedule("*/2 * * * *", main) // every 2 minutes
